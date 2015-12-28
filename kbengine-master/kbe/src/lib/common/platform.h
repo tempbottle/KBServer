@@ -223,6 +223,8 @@ typedef unsigned long											ulong;
 #define const_charptr											const char*
 #define PyObject_ptr											PyObject*
 
+// std::shared_ptr 是通过指针保持某个对象的共享拥有权的智能指针。若干个 shared_ptr 对象可以拥有同一个对象；
+// 最后一个指向该对象的 shared_ptr 被销毁或重置时，该对象被销毁。销毁该对象时使用的是 delete 表达式或者是在构造 shared_ptr 时传入的自定义删除器（deleter）。
 #define KBEShared_ptr											std::tr1::shared_ptr
 #define KBEUnordered_map										std::tr1::unordered_map
 

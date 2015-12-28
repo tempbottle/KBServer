@@ -53,6 +53,7 @@ namespace KBEngine{
 class RefCountable 
 {
 public:
+	// 减少函数调用的开销
 	inline void incRef(void) const
 	{
 		++refCount_;
@@ -69,6 +70,7 @@ public:
 
 	virtual void onRefOver(void) const
 	{
+		// const_cast转换符是用来移除变量的const或volatile限定符
 		delete const_cast<RefCountable*>(this);
 	}
 
@@ -83,10 +85,12 @@ public:
 	}
 
 protected:
+	// 只能被子类调用
 	RefCountable(void) : refCount_(0) 
 	{
 	}
 
+	// 当用一个基类的指针删除一个派生类的对象时，派生类的析构函数会被调用
 	virtual ~RefCountable(void) 
 	{ 
 		assert(0 == refCount_ && "RefCountable:currRef maybe a error!"); 
@@ -94,7 +98,7 @@ protected:
 
 protected:
 	volatile mutable long refCount_;
-};
+}; 
 
 #if KBE_PLATFORM == PLATFORM_WIN32
 class SafeRefCountable 
@@ -102,12 +106,13 @@ class SafeRefCountable
 public:
 	inline void incRef(void) const
 	{
+		// Increments(increases by one) the value of the specified 32 - bit variable as an atomic operation
 		::InterlockedIncrement(&refCount_);
 	}
 
 	inline void decRef(void) const
 	{
-		
+		// Decrements(decreases by one) the value of the specified 32 - bit variable as an atomic operation
 		long currRef =::InterlockedDecrement(&refCount_);
 		assert(currRef >= 0 && "RefCountable:currRef maybe a error!");
 		if (0 >= currRef)
@@ -140,6 +145,8 @@ protected:
 	}
 
 protected:
+	// 在C++中，mutable是为了突破const的限制而设置的。被mutable修饰的变量(mutable只能由于修饰类的非静态数据成员)，将永远处于可变的状态，即使在一个const函数中。
+	// 使用volatile 声明的变量的值的时候，系统总是重新从它所在的内存读取数据，即使它前面的指令刚刚从该处读取过数据
 	volatile mutable long refCount_;
 };
 #else

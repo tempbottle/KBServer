@@ -41,7 +41,7 @@ public:
 	virtual ~Packet(void)
 	{
 	};
-	
+
 	virtual void onReclaimObject()
 	{
 		MemoryStream::onReclaimObject();
