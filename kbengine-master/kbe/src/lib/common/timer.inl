@@ -101,11 +101,14 @@ public:
 template <class TIME_STAMP>
 void TimersT< TIME_STAMP >::purgeCancelledTimes()
 {
+	/* TimeBase容器 */
 	typename PriorityQueue::Container & container = timeQueue_.container();
+	/* 隔离被取消的定时器 */
 	typename PriorityQueue::Container::iterator newEnd =
 		std::partition( container.begin(), container.end(),
 			IsNotCancelled< Time >() );
 
+	/* 销毁被取消的定时器 */
 	for (typename PriorityQueue::Container::iterator iter = newEnd;
 		iter != container.end();
 		++iter)
@@ -118,6 +121,7 @@ void TimersT< TIME_STAMP >::purgeCancelledTimes()
 	KBE_ASSERT( (numCancelled_ == 0) || (numCancelled_ == 1) );
 	
 	container.erase( newEnd, container.end() );
+	/* 对timeQueue中的对象进行排序(用堆排序) */
 	timeQueue_.make_heap();
 }
 
@@ -126,16 +130,19 @@ int TimersT< TIME_STAMP >::process(TimeStamp now)
 {
 	int numFired = 0;
 
+	/* 判断定时器队列长度,定时器超时或者被取消，一次处理所有的定时器 */
 	while ((!timeQueue_.empty()) && (
 		timeQueue_.top()->time() <= now ||
 		timeQueue_.top()->isCancelled()))
 	{
+		/* 获取Time对象(继承TimeBase) */
 		Time * pTime = pProcessingNode_ = timeQueue_.top();
 		timeQueue_.pop();
 
 		if (!pTime->isCancelled())
 		{
 			++numFired;
+			/* 调用triggerTimer函数(调用handleTimeout) */
 			pTime->triggerTimer();
 		}
 
@@ -161,6 +168,7 @@ template <class TIME_STAMP>
 bool TimersT< TIME_STAMP >::legal(TimerHandle handle) const
 {
 	typedef Time * const * TimeIter;
+	/* 返回TimeBase对象 */
 	Time * pTime = static_cast< Time* >( handle.time() );
 
 	if (pTime == NULL)
@@ -168,6 +176,7 @@ bool TimersT< TIME_STAMP >::legal(TimerHandle handle) const
 		return false;
 	}
 
+	/* 定时器已经触发并且还没有执行完毕 */
 	if (pTime == pProcessingNode_)
 	{
 		return true;
@@ -175,7 +184,7 @@ bool TimersT< TIME_STAMP >::legal(TimerHandle handle) const
 
 	TimeIter begin = &timeQueue_.top();
 	TimeIter end = begin + timeQueue_.size();
-
+	/* 定时器没有触发 */
 	for (TimeIter it = begin; it != end; ++it)
 	{
 		if (*it == pTime)
@@ -195,7 +204,7 @@ TIME_STAMP TimersT< TIME_STAMP >::nextExp(TimeStamp now) const
 	{
 		return 0;
 	}
-
+	/* 返回离下一次出发需要等待的时间 */
 	return timeQueue_.top()->time() - now;
 }
 
@@ -207,6 +216,7 @@ bool TimersT< TIME_STAMP >::getTimerInfo( TimerHandle handle,
 {
 	Time * pTime = static_cast< Time * >( handle.time() );
 
+	/* 获取定时器触发时间,触发间隔,定时器用户信息 */
 	if (!pTime->isCancelled())
 	{
 		time = pTime->time();
@@ -260,18 +270,20 @@ TimersT< TIME_STAMP >::Time::Time( TimersBase & owner,
 template <class TIME_STAMP>
 void TimersT< TIME_STAMP >::Time::triggerTimer()
 {
+	/* 定时器没有被取消并且定时器被触发 */
 	if (!this->isCancelled())
 	{
 		state_ = TIME_EXECUTING;
 
 		pHandler_->handleTimeout( TimerHandle( this ), pUserData_ );
-
+		/* 没有时间间隔,执行完FUN后,CANCEL */
 		if ((interval_ == 0) && !this->isCancelled())
 		{
 			this->cancel();
 		}
 	}
 
+	/* 定时器没有被取消,重新设置触发时间,定时器设置为等待状态 */
 	if (!this->isCancelled())
 	{
 		time_ += interval_;

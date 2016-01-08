@@ -34,7 +34,7 @@ class TimerHandle
 public:
 	explicit TimerHandle(TimeBase * pTime = NULL) : pTime_( pTime ) {}
 
-	void cancel();
+	void cancel(); // 调用TimeBase的cancle方法
 	void clearWithoutCancel()	{ pTime_ = NULL; }
 
 	bool isSet() const		{ return pTime_ != NULL; }
@@ -60,14 +60,18 @@ class TimerHandler
 {
 public:
 	TimerHandler() : numTimesRegistered_( 0 ) {}
+
+	/* 通过基类的指针来删除派生类的对象时,调用子类的析构函数 */
 	virtual ~TimerHandler()
 	{
 		KBE_ASSERT( numTimesRegistered_ == 0 );
 	};
 
+	/* 纯虚函数 */
 	virtual void handleTimeout(TimerHandle handle, void * pUser) = 0;
 
 protected:
+	/* 虚函数 */
 	virtual void onRelease( TimerHandle handle, void * pUser ) {}
 private:
 	friend class TimeBase;
@@ -87,6 +91,7 @@ private:
 class TimeBase
 {
 public:
+	/* 一个TimerHandler可以被多个TimeBase拥有 */
 	TimeBase(TimersBase &owner, TimerHandler* pHandler, 
 		void* pUserData);
 	
@@ -140,6 +145,7 @@ public:
 					TimeStamp&	interval,
 					void *&	pUser ) const;
 	
+	/* 这个才是入口 */
 	TimerHandle	add(TimeStamp startTime, TimeStamp interval,
 						TimerHandler* pHandler, void * pUser);
 	
@@ -154,11 +160,15 @@ private:
 	class Time : public TimeBase
 	{
 	public:
+		/*
+		* @param startTime {TimeStamp} 开始时间
+		* @param interval {TimeStamp} 时间间隔
+		*/
 		Time( TimersBase & owner, TimeStamp startTime, TimeStamp interval,
 			TimerHandler * pHandler, void * pUser );
 
-		TIME_STAMP time() const			{ return time_; }
-		TIME_STAMP interval() const		{ return interval_; }
+		TIME_STAMP time() const			{ return time_; } // 开始时间
+		TIME_STAMP interval() const		{ return interval_; } // 时间间隔
 
 		void triggerTimer();
 
@@ -166,10 +176,14 @@ private:
 		TimeStamp			time_;
 		TimeStamp			interval_;
 
+		/*
+		* 私有构造函数,表示不允许拷贝构造函数
+		*/
 		Time( const Time & );
 		Time & operator=( const Time & );
 	};
 
+	/* 比较定时器的触发时间,晚触发返回TRUE */
 	class Comparator
 	{
 	public:
@@ -179,19 +193,22 @@ private:
 		}
 	};
 	
+	/* 定时器队列(更加优先级排序) */
 	class PriorityQueue
 	{
 	public:
 		typedef std::vector<Time *> Container;
 
-		typedef typename Container::value_type value_type;
-		typedef typename Container::size_type size_type;
+		/* 泛型 */
+		typedef (typename Container::value_type) value_type;
+		typedef (typename Container::size_type) size_type;
 
 		bool empty() const				{ return container_.empty(); }
 		size_type size() const			{ return container_.size(); }
 
 		const value_type & top() const	{ return container_.front(); }
 
+		/* 根据定时器触发时间的先后顺序,PUSH到Container中 */
 		void push( const value_type & x )
 		{
 			container_.push_back( x );
@@ -199,6 +216,7 @@ private:
 					Comparator() );
 		}
 
+		/* 根据定时器触发时间的先后顺序,从Container中POP定时器 */
 		void pop()
 		{
 			std::pop_heap( container_.begin(), container_.end(), Comparator() );
@@ -208,6 +226,7 @@ private:
 		Time * unsafePopBack()
 		{
 			Time * pTime = container_.back();
+			/* Delete last element */
 			container_.pop_back();
 			return pTime;
 		}
@@ -216,6 +235,7 @@ private:
 
 		void make_heap()
 		{
+			/* Rearranges the elements in the range [first,last) in such a way that they form a heap */
 			std::make_heap( container_.begin(), container_.end(),
 					Comparator() );
 		}
